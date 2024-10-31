@@ -1,3 +1,4 @@
+#import pydantic for defining data models and pymongo for MongoDB 
 from pydantic import BaseModel
 import pymongo
 # Import traceback for error handling
@@ -25,6 +26,8 @@ from langchain_community.callbacks import get_openai_callback
 from langchain.chains import ConversationalRetrievalChain
 
 from langchain_openai import ChatOpenAI
+
+# Garbage collection to save memory 
 import gc
 
 import urllib.parse
@@ -97,10 +100,10 @@ def get_response(
     session_id: str,
     query: str,
     model: str = "gpt-3.5-turbo-16k",
-    temperature: float = 0,
+    temperature: float = 0 # response randomness - produce very stable and less tandom response,
 ):
     print("file name is ", file_name)
-    file_name=file_name.split("/")[-1]
+    file_name=file_name.split("/")[-1] # Get the file name from the file path, extracting last part after the slash using this line over here
     """
     Generate a response using a conversational model.
 
@@ -301,7 +304,7 @@ async def create_chat_message(
                 user_input=chats.user_input,
                 data_source=chats.data_source,
             )
-            payload = payload.model_dump()
+            payload = payload.model_dump() #dictionary-like representation 
 
             response = get_response(
                 file_name=payload.get("data_source"),
@@ -355,7 +358,7 @@ async def create_chat_message(
         raise HTTPException(status_code=status.HTTP_204_NO_CONTENT, detail="error")
 
 
-@app.post("/uploadFile")
+@app.post("/uploadFile") # This is a POST endpoint, it will be used to upload files to the server
 async def uploadtos3(data_file: UploadFile):
     """
     Uploads a file to Amazon S3 storage.
@@ -376,23 +379,23 @@ async def uploadtos3(data_file: UploadFile):
     print(data_file.filename.split("/")[-1])
     try:
         with open(f"{data_file.filename}", "wb") as out_file:
-            content = await data_file.read()  # async read
+            content = await data_file.read()  # async read - allows the code to perform multiple tasks concurrently, improving responsiveness and efficiently. I/O-bound operations such as network requests or database queries to avoid blocking the main thread of execution. 
             out_file.write(content)  # async write
         wr.s3.upload(
             local_file=data_file.filename,
             path=f"s3://{S3_BUCKET}/{S3_PATH}{data_file.filename.split('/')[-1]}",
             boto3_session=aws_s3,
         )
-        os.remove(data_file.filename)
+        os.remove(data_file.filename) #remove local files 
         response = {
             "filename": data_file.filename.split("/")[-1],
             "file_path": f"s3://{S3_BUCKET}/{S3_PATH}{data_file.filename.split('/')[-1]}",
         }
 
-    except FileNotFoundError:
+    except FileNotFoundError: #error handling
         raise HTTPException(status_code=404, detail="Item not found")
 
-    return JSONResponse(content=response)
+    return JSONResponse(content=response) #return to the client 
 
 
 import uvicorn
